@@ -4,6 +4,7 @@ import rclpy
 from rclpy.node import Node
 import sensor_msgs.msg
 from std_msgs.msg import Empty, String
+import nav_msgs.msg
 import geometry_msgs.msg
 from cv_bridge import CvBridge
 import threading
@@ -28,8 +29,12 @@ class TelloController(tk.Tk):
         self.land_pub = self.node.create_publisher(Empty, '/land', 1)
         self.emergency_pub = self.node.create_publisher(Empty, '/emergency', 1)
         self.control_pub = self.node.create_publisher(geometry_msgs.msg.Twist, '/control', 1)
-        self.node.create_subscription(sensor_msgs.msg.BatteryState, "/battery", self.update_battery_status, 10)
+        self.prec_move_pub = self.node.create_publisher(geometry_msgs.msg.Pose, '/prec_move', 1)
         self.flip_pub = self.node.create_publisher(String, '/flip', 1)
+
+        # ROS2 subscribers
+        self.node.create_subscription(sensor_msgs.msg.BatteryState, "/battery", self.update_battery_status, 10)
+        self.odom_sub = self.node.create_subscription(nav_msgs.msg.Odometry, '/odom', self.cb_odom, 1)
 
         # Keypress
         self.bind("<Key>", self.key_press)
@@ -78,6 +83,21 @@ class TelloController(tk.Tk):
 
         self.battery_label = ttk.Label(self, text="Battery: --%")
         self.battery_label.grid(row=3, column=0, columnspan=3, padx=10, pady=10)
+
+        self.test_move = ttk.Button(self, text="GOOOO", command=self.test_move)
+        self.test_move.grid(row=4, column=0, padx=10, pady=10)
+
+        self.is_moving = True
+
+    def test_move(self):
+        self.takeoff()
+        time.sleep(5)
+        while(self.is_moving):
+            time.sleep(0.5)
+        print("moving")
+        self.move_to_pose(0.0, 0.0, 0.0, 0.0, 0.0, 0.7071068, 0.7071068)
+        time.sleep(5)
+        self.land()
 
     def schedule_stop(self, secs):
         threading.Timer(secs, self.stop_movement).start()
@@ -227,7 +247,23 @@ class TelloController(tk.Tk):
         battery_percentage = int(battery_data.percentage)
         self.battery_label.config(text=f"Battery: {battery_percentage}%")
 
+    def move_to_pose(self, x, y, z, qx = 0.0, qy = 0.0, qz = 0.0, qw = 1.0):
+        pose = geometry_msgs.msg.Pose()
+        pose.position.x = x
+        pose.position.y = y
+        pose.position.z = z
+        pose.orientation.x = qx
+        pose.orientation.y = qy
+        pose.orientation.z = qz
+        pose.orientation.w = qw
 
+        self.prec_move_pub.publish(pose)
+
+    def cb_odom(self, msg: nav_msgs.msg.Odometry):
+        if msg.twist.twist.linear.x < 0.1 and msg.twist.twist.linear.y < 0.1 and msg.twist.twist.linear.z < 0.1:
+            self.is_moving = False
+        else:
+            self.is_moving = True 
 
 def main(args=None):
     rclpy.init(args=args)
