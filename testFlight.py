@@ -34,7 +34,7 @@ class TelloController(tk.Tk):
 
         # ROS2 subscribers
         self.node.create_subscription(sensor_msgs.msg.BatteryState, "/battery", self.update_battery_status, 10)
-        self.odom_sub = self.node.create_subscription(nav_msgs.msg.Odometry, '/odom', self.cb_odom, 1)
+        self.node.create_subscription(nav_msgs.msg.Odometry, "/run_slam/camera_pose", self.cb_odom, 1)
 
         # Keypress
         self.bind("<Key>", self.key_press)
@@ -87,7 +87,7 @@ class TelloController(tk.Tk):
         self.test_move = ttk.Button(self, text="GOOOO", command=self.test_move)
         self.test_move.grid(row=4, column=0, padx=10, pady=10)
 
-        self.is_moving = True
+        self.pose = [0.0, 0.0, 0.0]
 
     def test_move(self):
         self.takeoff()
@@ -260,10 +260,9 @@ class TelloController(tk.Tk):
         self.prec_move_pub.publish(pose)
 
     def cb_odom(self, msg: nav_msgs.msg.Odometry):
-        if msg.twist.twist.linear.x < 0.1 and msg.twist.twist.linear.y < 0.1 and msg.twist.twist.linear.z < 0.1:
-            self.is_moving = False
-        else:
-            self.is_moving = True 
+        self.pose[0] = msg.pose.pose.position.x
+        self.pose[1] = msg.pose.pose.position.y
+        self.pose[2] = msg.pose.pose.position.z
 
 def main(args=None):
     rclpy.init(args=args)
