@@ -84,8 +84,11 @@ class TelloController(tk.Tk):
         self.battery_label = ttk.Label(self, text="Battery: --%")
         self.battery_label.grid(row=3, column=0, columnspan=3, padx=10, pady=10)
 
-        self.test_move = ttk.Button(self, text="GOOOO", command=self.test_move)
-        self.test_move.grid(row=4, column=0, padx=10, pady=10)
+        self.test_move_button = ttk.Button(self, text="GOOOO", command=self.test_move)
+        self.test_move_button.grid(row=4, column=0, padx=10, pady=10)
+
+        self.error_correct_button = ttk.Button(self, text="FIX", command=self.error_correct)
+        self.error_correct_button.grid(row=4, column=1, padx=10, pady=10)
 
         self.pose = [0.0, 0.0, 0.0]
 
@@ -249,9 +252,9 @@ class TelloController(tk.Tk):
 
     def move_to_pose(self, x, y, z, qx = 0.0, qy = 0.0, qz = 0.0, qw = 1.0):
         pose = geometry_msgs.msg.Pose()
-        pose.position.x = x
-        pose.position.y = y
-        pose.position.z = z
+        pose.position.x = float(x)
+        pose.position.y = float(y)
+        pose.position.z = float(z)
         pose.orientation.x = qx
         pose.orientation.y = qy
         pose.orientation.z = qz
@@ -259,10 +262,21 @@ class TelloController(tk.Tk):
 
         self.prec_move_pub.publish(pose)
 
+    def error_correct(self, x = 0.0, y = 0.0, z = 0.0):
+        xdiff = x - self.pose[0]
+        ydiff = y - self.pose[1]
+        # zdiff = z - self.pose[2]
+
+        print(xdiff, ydiff)
+
+        self.move_to_pose(1, 0, 0)
+
+
     def cb_odom(self, msg: nav_msgs.msg.Odometry):
         self.pose[0] = msg.pose.pose.position.x
         self.pose[1] = msg.pose.pose.position.y
         self.pose[2] = msg.pose.pose.position.z
+        # print(self.pose[0], self.pose[1], self.pose[2])
 
 def main(args=None):
     rclpy.init(args=args)
